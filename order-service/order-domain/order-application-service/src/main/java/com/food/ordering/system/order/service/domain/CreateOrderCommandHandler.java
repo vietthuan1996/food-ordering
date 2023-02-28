@@ -11,6 +11,7 @@ import com.food.ordering.system.order.service.domain.entity.Restaurant;
 import com.food.ordering.system.order.service.domain.event.OrderCreatedEvent;
 import com.food.ordering.system.order.service.domain.exception.OrderDomainException;
 import com.food.ordering.system.order.service.domain.mapper.OrderMapper;
+import com.food.ordering.system.order.service.domain.port.output.message.publisher.payment.OrderCreatedPaymentRequestMessagePublisher;
 import com.food.ordering.system.order.service.domain.port.output.repository.CustomerRepository;
 import com.food.ordering.system.order.service.domain.port.output.repository.OrderRepository;
 import com.food.ordering.system.order.service.domain.port.output.repository.RestaurantRepository;
@@ -28,14 +29,18 @@ public class CreateOrderCommandHandler {
     private final RestaurantRepository restaurantRepository;
     private final OrderMapper orderMapper;
 
+    private final OrderCreatedPaymentRequestMessagePublisher paymentRequestMessagePublisher;
+
     @Autowired
     public CreateOrderCommandHandler(OrderDomainService orderDomainService, OrderRepository orderRepository,
-        CustomerRepository customerRepository, RestaurantRepository restaurantRepository, OrderMapper orderMapper) {
+        CustomerRepository customerRepository, RestaurantRepository restaurantRepository, OrderMapper orderMapper,
+        OrderCreatedPaymentRequestMessagePublisher paymentRequestMessagePublisher) {
         this.orderDomainService = orderDomainService;
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.restaurantRepository = restaurantRepository;
         this.orderMapper = orderMapper;
+        this.paymentRequestMessagePublisher = paymentRequestMessagePublisher;
     }
 
     @Transactional
@@ -46,6 +51,7 @@ public class CreateOrderCommandHandler {
         OrderCreatedEvent orderCreatedEvent = orderDomainService.validateAndInitiateOrder(order, restaurant);
         Order result = saveOrder(order);
         log.info("Order created with id: {}", result.getId().getValue());
+        this.paymentRequestMessagePublisher.publish(orderCreatedEvent);
         return orderMapper.orderToCreateOrderResponse(result);
     }
 
